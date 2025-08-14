@@ -98,7 +98,7 @@ dataset = st.sidebar.selectbox("Dataset", ["1: linearly separable", "2: non-sepa
 n_obs = st.sidebar.slider("Number of observations (n)", min_value=50, max_value=3000, value=500, step=50)
 seed = st.sidebar.number_input("Random seed", min_value=0, value=10, step=1)
 
-user_slope = st.sidebar.slider("Your line slope (m)", min_value=-2.0, max_value=2.0, value=-0.5, step=0.01)
+user_slope = st.sidebar.slider("Your line slope (m)", min_value=-0.15, max_value=2.0, value=-0.15, step=0.01)
 user_intercept = st.sidebar.slider("Your line intercept (b)", min_value=-50.0, max_value=50.0, value=0.0, step=0.5)
 
 st.sidebar.markdown("---")
