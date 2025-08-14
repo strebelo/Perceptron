@@ -98,8 +98,8 @@ dataset = st.sidebar.selectbox("Dataset", ["1: linearly separable", "2: non-sepa
 n_obs = st.sidebar.slider("Number of observations (n)", min_value=50, max_value=3000, value=500, step=50)
 seed = st.sidebar.number_input("Random seed", min_value=0, value=10, step=1)
 
-user_slope = st.sidebar.slider("Your line slope (m)", min_value=-0.15, max_value=2.0, value=-0.15, step=0.01)
-user_intercept = st.sidebar.slider("Your line intercept (b)", min_value=-50.0, max_value=50.0, value=0.0, step=0.5)
+user_slope = st.sidebar.slider("Your line slope (m)", min_value=-0.15, max_value=0.15, value=0.0, step=0.005)
+user_intercept = st.sidebar.slider("Your line intercept (b)", min_value=-50.0, max_value=50.0, value=0.0, step=1)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Perceptron hyperparameters")
@@ -157,10 +157,14 @@ mask_pos = y == 1
 mask_neg = ~mask_pos
 ax.scatter(X[mask_pos, 0], X[mask_pos, 1], marker='o', label='+1 (paid)')
 ax.scatter(X[mask_neg, 0], X[mask_neg, 1], marker='x', label='-1 (default)')
+# Label the axes
+ax.set_xlabel('Credit score')   # Replace with your actual variable name
+ax.set_ylabel('Debt/income')
 
 # x-range for lines
 x_min, x_max = X[:,0].min(), X[:,0].max()
 x_vals = np.linspace(x_min, x_max, 200)
+
 
 # user-chosen line
 y_user = user_slope * x_vals + user_intercept
