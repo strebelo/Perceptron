@@ -178,8 +178,8 @@ if perc_slope is not None:
     else:
         st.info("Perceptron produced a vertical line (w2≈0). Not plotted.")
 
-ax.set_xlabel("Feature 1")
-ax.set_ylabel("Feature 2")
+ax.set_xlabel("Credit score")
+ax.set_ylabel("Debt/income")
 ax.legend(loc="best")
 ax.set_title("Perceptron in 2D")
 
