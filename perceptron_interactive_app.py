@@ -8,14 +8,14 @@ st.set_page_config(page_title="Perceptron Demo", layout="centered")
 
 st.title("Perceptron: Interactive Linear Classification Demo")
 
-st.markdown(
-    """
-This app illustrates how the **perceptron** finds a separating line in 2D.  
-- **Dataset 1** is approximately linearly separable (like the MATLAB example with credit score vs. debt-to-income).  
-- **Dataset 2** is **not** linearly separable (we inject label noise so no single line gets everything right).  
-Use the sliders to pick your own **slope** and **intercept**, then click **Run perceptron** to see the algorithm's line.
-"""
-)
+#st.markdown(
+#    """
+#This app illustrates how the **perceptron** finds a separating line in 2D.  
+#- **Dataset 1** is approximately linearly separable (like the MATLAB example with credit score vs. debt-to-income).  
+#- **Dataset 2** is **not** linearly separable (we inject label noise so no single line gets everything right).  
+#Use the sliders to pick your own **slope** and **intercept**, then click **Run perceptron** to see the algorithm's line.
+#"""
+#)
 
 # ------------------------------
 # Data generators
