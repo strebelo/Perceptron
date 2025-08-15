@@ -94,7 +94,7 @@ def classify_with_line(X, slope, intercept):
 # ------------------------------
 st.sidebar.header("Controls")
 
-dataset = st.sidebar.selectbox("Dataset", ["1: linearly separable", "2: non-separable (noisy)"])
+dataset = st.sidebar.selectbox("Dataset", ["1: linearly separable", "2: non-separable"])
 n_obs = st.sidebar.slider("Number of observations (n)", min_value=50, max_value=3000, value=500, step=50)
 seed = st.sidebar.number_input("Random seed", min_value=0, value=10, step=1)
 
