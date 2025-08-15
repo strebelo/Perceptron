@@ -99,7 +99,7 @@ n_obs = st.sidebar.slider("Number of observations (n)", min_value=50, max_value=
 seed = st.sidebar.number_input("Random seed", min_value=0, value=10, step=1)
 
 user_slope = st.sidebar.slider("Your line slope (m)", min_value=-0.15, max_value=0.20, value=0.0, step=0.005)
-user_intercept = st.sidebar.slider("Your line intercept (b)", min_value=-50.0, max_value=50.0, value=0.0, step=1.0)
+user_intercept = st.sidebar.slider("Your line intercept (b)", min_value=-50.0, max_value=50.0, value=0.0, step=0.1)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Perceptron hyperparameters")
