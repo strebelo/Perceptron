@@ -1,0 +1,248 @@
+# perceptron_credit_streamlit.py
+import numpy as np
+import streamlit as st
+import matplotlib.pyplot as plt
+
+st.set_page_config(page_title="Perceptron: Credit Example", layout="centered")
+st.title("Perceptron: Credit Approval Demo")
+
+st.markdown(
+    """
+This demo shows how a **perceptron** learns a decision boundary for a simple credit example:
+
+- **x-axis:** Credit score  
+- **y-axis:** Debt-to-income ratio  
+- **Labels:** +1 (paid) and -1 (default)  
+- The perceptron **nudges weights** only when it finds a misclassified point.
+"""
+)
+
+# -----------------------------------------------------------------------------
+# Session state (for storing perceptron results and histories across reruns)
+# -----------------------------------------------------------------------------
+if "perc_line" not in st.session_state:       # (slope, intercept) or None
+    st.session_state.perc_line = None
+if "perc_acc" not in st.session_state:
+    st.session_state.perc_acc = None
+if "histories" not in st.session_state:       # cache keyed by (dataset, n, seed, lr, epochs, flip)
+    st.session_state.histories = {}
+
+# -----------------------------------------------------------------------------
+# Data generators: same structure as your previous program
+# -----------------------------------------------------------------------------
+def generate_dataset_1(n, rng):
+    # Credit score between 500 and 700
+    credit_score = rng.random(n) * 200 + 500
+    # Debt/Income inversely related to credit score + noise
+    debt_income = 100 - 0.1 * credit_score + rng.normal(0, 3, size=n)
+    # Labels: +1 "paid", -1 "default"
+    labels = np.ones(n, dtype=int)
+    labels[(credit_score < 600) & (debt_income > 40)] = -1
+    X = np.column_stack([credit_score, debt_income])
+    return X, labels
+
+def generate_dataset_2(n, rng, flip_frac=0.2):
+    X, y = generate_dataset_1(n, rng)
+    n_flip = int(flip_frac * n)
+    if n_flip > 0:
+        idx = rng.choice(n, size=n_flip, replace=False)
+        y[idx] = -y[idx]
+    return X, y
+
+# -----------------------------------------------------------------------------
+# Perceptron utilities
+# -----------------------------------------------------------------------------
+def line_from_weights(w):
+    # w1*x + w2*y + b = 0  => y = -(w1/w2) x - b/w2
+    w1, w2, b = w
+    if np.isclose(w2, 0.0):
+        return None, None
+    return -w1 / w2, -b / w2
+
+def classify_with_line(X, slope, intercept):
+    # y_hat = sign( y - (m x + b) )
+    return np.where(X[:, 1] - (slope * X[:, 0] + intercept) >= 0, 1, -1)
+
+def accuracy_from_line(X, y, slope, intercept):
+    y_pred = classify_with_line(X, slope, intercept)
+    return (y_pred == y).mean()
+
+def perceptron_train(X, y, lr=0.01, epochs=50, rng=None, pocket=True):
+    """Standard perceptron with optional pocket. Returns final weights."""
+    n = X.shape[0]
+    Xb = np.column_stack([X, np.ones(n)])  # add bias
+    if rng is None:
+        rng = np.random.default_rng(0)
+    w = rng.normal(0, 1, size=3)
+
+    best_w = w.copy()
+    best_acc = (np.sign(Xb @ w) == y).mean()
+
+    for _ in range(epochs):
+        for j in rng.permutation(n):
+            pred = 1 if np.sign(Xb[j] @ w) == 0 else int(np.sign(Xb[j] @ w))
+            if pred != y[j]:
+                w = w + lr * y[j] * Xb[j]
+        if pocket:
+            acc = (np.sign(Xb @ w) == y).mean()
+            if acc > best_acc:
+                best_acc, best_w = acc, w.copy()
+
+    return best_w if pocket else w
+
+def perceptron_history(X, y, lr=0.01, epochs=20, rng=None):
+    """
+    Record a step-by-step history of weight updates.
+    Returns a list of (w_before_or_after, idx_updated, margin_before).
+    We record a state *before* each update (with the idx that triggered it),
+    and the new weights *after* the update (with idx_updated=None).
+    """
+    n = X.shape[0]
+    Xb = np.column_stack([X, np.ones(n)])
+    if rng is None:
+        rng = np.random.default_rng(0)
+    w = rng.normal(0, 1, size=3)
+    history = [(w.copy(), None, None)]
+
+    for _ in range(epochs):
+        for j in rng.permutation(n):
+            margin = y[j] * (Xb[j] @ w)
+            if margin <= 0:  # misclassified or on boundary
+                history.append((w.copy(), j, margin))
+                w = w + lr * y[j] * Xb[j]
+                history.append((w.copy(), None, None))
+    return history
+
+# -----------------------------------------------------------------------------
+# Sidebar controls
+# -----------------------------------------------------------------------------
+st.sidebar.header("Controls")
+
+dataset = st.sidebar.selectbox("Dataset", ["1: linearly separable", "2: non-separable"])
+n_obs = st.sidebar.slider("Number of observations (n)", 50, 3000, 500, step=50)
+seed = st.sidebar.number_input("Random seed", min_value=0, value=10, step=1)
+
+user_slope = st.sidebar.slider("Your line slope (m)", min_value=-0.15, max_value=0.20, value=0.0, step=0.005)
+user_intercept = st.sidebar.slider("Your line intercept (b)", min_value=-50.0, max_value=50.0, value=0.0, step=1.0)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("Perceptron hyperparameters")
+lr = st.sidebar.slider("Learning rate", min_value=0.001, max_value=0.1, value=0.01, step=0.001)
+epochs = st.sidebar.slider("Epochs", min_value=10, max_value=500, value=200, step=10)
+use_pocket = st.sidebar.checkbox("Use pocket (keep best weights)", value=True)
+
+flip_frac = 0.2
+if dataset.startswith("2"):
+    flip_frac = st.sidebar.slider("Noise: fraction of labels flipped", 0.05, 0.5, 0.2, step=0.05)
+
+rng = np.random.default_rng(int(seed))
+
+# -----------------------------------------------------------------------------
+# Generate data
+# -----------------------------------------------------------------------------
+if dataset.startswith("1"):
+    X, y = generate_dataset_1(n_obs, rng)
+else:
+    X, y = generate_dataset_2(n_obs, rng, flip_frac=flip_frac)
+
+# -----------------------------------------------------------------------------
+# Step-by-step history (cached by key)
+# -----------------------------------------------------------------------------
+hist_key = (dataset, n_obs, int(seed), float(lr), int(epochs), float(flip_frac))
+if hist_key not in st.session_state.histories:
+    st.session_state.histories[hist_key] = perceptron_history(X, y, lr=lr, epochs=epochs, rng=rng)
+hist = st.session_state.histories[hist_key]
+
+# -----------------------------------------------------------------------------
+# Plot (render first)
+# -----------------------------------------------------------------------------
+fig, ax = plt.subplots()
+
+mask_pos = (y == 1)
+ax.scatter(X[mask_pos, 0], X[mask_pos, 1], marker='o', label='+1 (paid)')
+ax.scatter(X[~mask_pos, 0], X[~mask_pos, 1], marker='x', label='-1 (default)')
+ax.set_xlabel("Credit score")
+ax.set_ylabel("Debt/income")
+
+x_vals = np.linspace(X[:, 0].min(), X[:, 0].max(), 200)
+
+# User line and accuracy
+y_user = user_slope * x_vals + user_intercept
+user_acc = accuracy_from_line(X, y, user_slope, user_intercept)
+ax.plot(x_vals, y_user, linestyle='--',
+        label=f'Your line: y={user_slope:.2f}x+{user_intercept:.2f} (acc={user_acc:.2%})')
+
+# Perceptron line from stored run (if any)
+if st.session_state.perc_line is not None:
+    m, b = st.session_state.perc_line
+    y_perc = m * x_vals + b
+    ax.plot(x_vals, y_perc, linewidth=2,
+            label=f'Perceptron: y={m:.2f}x+{b:.2f} (acc={st.session_state.perc_acc:.2%})')
+
+ax.legend(loc="best")
+ax.set_title("Perceptron Decision Boundary for Credit Approval")
+st.pyplot(fig)
+
+# -----------------------------------------------------------------------------
+# Button AFTER the plot: train & store
+# -----------------------------------------------------------------------------
+if st.button("Run Perceptron"):
+    w = perceptron_train(X, y, lr=lr, epochs=epochs, rng=rng, pocket=use_pocket)
+    m, b = line_from_weights(w)
+    if m is None or b is None:
+        st.info("Perceptron produced a vertical boundary (w2≈0). Line not plotted.")
+    else:
+        st.session_state.perc_line = (m, b)
+        st.session_state.perc_acc = accuracy_from_line(X, y, m, b)
+    st.rerun()
+
+# -----------------------------------------------------------------------------
+# Learn step-by-step (scrub through updates)
+# -----------------------------------------------------------------------------
+st.markdown("### Learn step-by-step")
+step = st.slider("Update step", 0, len(hist) - 1, 0)
+w_t, idx_updated, margin_before = hist[step]
+
+# Plot the boundary at the selected step
+fig2, ax2 = plt.subplots()
+ax2.scatter(X[mask_pos, 0], X[mask_pos, 1], marker='o', label='+1 (paid)')
+ax2.scatter(X[~mask_pos, 0], X[~mask_pos, 1], marker='x', label='-1 (default)')
+
+# Highlight point that triggered the update (if any)
+if idx_updated is not None:
+    ax2.scatter([X[idx_updated, 0]], [X[idx_updated, 1]],
+                s=140, facecolors='none', edgecolors='k', linewidths=2,
+                label='Point causing update')
+
+# Draw current perceptron boundary for this step
+m_t, b_t = line_from_weights(w_t)
+if m_t is not None and b_t is not None:
+    y_step = m_t * x_vals + b_t
+    ax2.plot(x_vals, y_step, linewidth=2, label=f'Perceptron (step {step})')
+
+# Also show your line for comparison
+y_user2 = user_slope * x_vals + user_intercept
+ax2.plot(x_vals, y_user2, linestyle='--', label='Your line')
+
+ax2.set_xlabel("Credit score")
+ax2.set_ylabel("Debt/income")
+ax2.legend(loc="best")
+st.pyplot(fig2)
+
+# Explain the update when applicable
+if idx_updated is not None:
+    st.caption(
+        f"Update triggered (step {step}) by a misclassified point. "
+        f"Pre-update signed margin y(w·x) = {margin_before:.3f} (≤ 0 ⇒ mistake). "
+        f"Update rule: w ← w + η · y · x̃ (with bias term)."
+    )
+
+with st.expander("Notes"):
+    st.markdown(
+        """
+- **Only mistakes cause learning:** the perceptron updates on misclassified points.
+- **Learning rate** controls the size of each nudge.
+- **Epochs** are full passes over the training set.
+- **Pocket** (used in the Run button) keeps the best weights encountered—useful with noisy/non-separable data.
+"""
+    )
