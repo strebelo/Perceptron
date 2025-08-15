@@ -181,7 +181,7 @@ if perc_slope is not None:
 ax.set_xlabel("Credit score")
 ax.set_ylabel("Debt/income")
 ax.legend(loc="best")
-ax.set_title("Perceptron in 2D")
+ax.set_title("Perceptron Classification of Credit Applicants")
 
 st.pyplot(fig)
 
