@@ -64,8 +64,11 @@ def q_update(Q: np.ndarray, s: int, a: int, r: float, s_next: int, alpha: float,
 def draw_grid(R: np.ndarray, visited: np.ndarray,
               agent_pos: Tuple[int, int], start_pos: Tuple[int, int],
               treasure_pos: Tuple[int, int]):
-    """Plot grid: discovered rewards, '?' unknown, markers for start (⚑), agent (🤖), treasure (💎).
-       No rectangle under treasure cell."""
+    """Plot grid:
+       - Unknown cells: "?"
+       - Discovered: show reward with a light rectangle
+       - Treasure (1,4): show "?" until visited, then show 💎 and the reward/rectangle
+    """
     n_rows, n_cols = R.shape
     fig, ax = plt.subplots(figsize=(5.5, 5.5))
     ax.set_xlim(0, n_cols)
@@ -79,21 +82,30 @@ def draw_grid(R: np.ndarray, visited: np.ndarray,
         for j in range(n_cols):
             x, y = j, i
             cell = (i + 1, j + 1)
-            if cell == treasure_pos:
-                # skip rectangle/label to avoid the box under 💎
+            is_start = (cell == start_pos)
+            is_treasure = (cell == treasure_pos)
+            is_visited = visited[i, j] or is_start
+
+            if is_treasure and not visited[i, j]:
+                # Treasure hidden: render as unknown (no rectangle, no 💎)
+                ax.text(x + 0.5, y + 0.6, "?", ha="center", va="center", fontsize=12, fontweight="bold")
                 continue
-            if visited[i, j] or cell == start_pos:
+
+            if is_visited:
                 ax.add_patch(plt.Rectangle((x, y), 1, 1, alpha=0.2))
                 ax.text(x + 0.5, y + 0.6, f"{R[i, j]:.1f}", ha="center", va="center", fontsize=11)
             else:
                 ax.text(x + 0.5, y + 0.6, "?", ha="center", va="center", fontsize=12, fontweight="bold")
 
-    # Treasure icon
+    # If treasure has been visited, draw the 💎 on top of its cell
     tr, tc = treasure_pos
-    ax.text(tc - 0.5, tr - 0.5, "💎", ha="center", va="center", fontsize=22)
+    if visited[tr - 1, tc - 1]:
+        ax.text(tc - 0.5, tr - 0.5, "💎", ha="center", va="center", fontsize=22)
+
     # Start marker
     sr, sc = start_pos
     ax.text(sc - 0.5, sr - 0.5, "⚑", ha="center", va="center", fontsize=16)
+
     # Agent marker
     ar, ac = agent_pos
     ax.text(ac - 0.5, ar - 0.5, "🤖", ha="center", va="center", fontsize=18)
@@ -106,9 +118,7 @@ def draw_grid(R: np.ndarray, visited: np.ndarray,
 def q_dataframe(Q: np.ndarray, n_rows: int, n_cols: int) -> pd.DataFrame:
     labels = [f"({r},{c})" for r in range(1, n_rows + 1) for c in range(1, n_cols + 1)]
     df = pd.DataFrame(Q, columns=ACTIONS, index=labels)
-    # Keep it super robust: round, and show NaNs as empty
-    df = df.round(2)
-    return df
+    return df.round(2)
 
 # ----------------------------------------------------
 # Session state (one-time init)
@@ -131,7 +141,7 @@ if "initialized" not in st.session_state:
     st.session_state.episodes_done = 0
 
 # ----------------------------------------------------
-# Sidebar controls (simple & stable)
+# Sidebar controls
 # ----------------------------------------------------
 with st.sidebar:
     st.header("Controls")
@@ -217,10 +227,9 @@ def play_random_episode(max_steps: int = 500) -> bool:
 # ----------------------------------------------------
 st.title("🗺️ Treasure Hunt — Q-Learning Interactive")
 st.write(
-    "Start at **(4,1)** (⚑). Find the treasure at **(1,4)** (💎). "
-    "Moves cost −1; obstacles are more negative; treasure gives +10. "
-    "Q updates:  \n"
-    "`Q(s,a) ← Q(s,a) + α [ r + γ max_a′ Q(s′,a′) − Q(s,a) ]`"
+    "Start at **(4,1)** (⚑). Find the treasure at **(1,4)**. "
+    "Moves cost −1; obstacles are more negative; treasure gives +10.  \n"
+    "Update: `Q(s,a) ← Q(s,a) + α [ r + γ max_a′ Q(s′,a′) − Q(s,a) ]`"
 )
 
 # Top row: left controls, right discovered grid
@@ -278,7 +287,6 @@ with right:
 # Bottom: Q-matrix then log
 st.subheader("Q-matrix (state × actions)")
 dfQ = q_dataframe(st.session_state.Q, st.session_state.n_rows, st.session_state.n_cols)
-# Show NaNs as blank strings to avoid any render quirks
 st.dataframe(dfQ.where(pd.notnull(dfQ), ""), use_container_width=True, height=420)
 
 st.subheader("Activity log")
