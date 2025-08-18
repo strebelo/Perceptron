@@ -41,7 +41,7 @@ def load_model():
 def load_image(file_bytes, target_size=(224, 224)):
     img = Image.open(io.BytesIO(file_bytes)).convert("RGB")
     img_resized = img.resize(target_size, Image.LANCZOS)
-    return img, img_resized  # original (for reference), resized (for model + fair display)
+    return img, img_resized  # original (for display), resized (for model)
 
 def np_to_pil(x_uint8):
     return Image.fromarray(x_uint8)
@@ -122,8 +122,7 @@ if uploaded is not None:
     # Display original image + preds
     with col1:
         st.subheader("Original")
-        # 🔹 Show resized 224×224 version for fair side-by-side comparison
-        st.image(resized_img, caption="Original (resized to 224×224 for fair comparison)")
+        st.image(original_img, caption="Uploaded image (displayed at original resolution)")
 
         st.write("**Top-5 predictions (original):**")
         st.table(
@@ -147,7 +146,7 @@ if uploaded is not None:
 
         with col2:
             st.subheader("Adversarial")
-            st.image(adv_uint8, caption="Adversarial (224×224)")
+            st.image(adv_uint8, caption="Adversarial (shown at 224×224)")
 
             st.write("**Top-5 predictions (adversarial):**")
             st.table(
