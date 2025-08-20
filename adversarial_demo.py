@@ -14,8 +14,8 @@ from tensorflow.keras.applications.mobilenet_v2 import (
     preprocess_input, decode_predictions
 )
 
-st.set_page_config(page_title="Adversarial Examples: FGSM Demo", layout="centered")
-st.title("🔒 Adversarial Examples Demo (FGSM)")
+st.set_page_config(page_title="Adversarial Attack", layout="centered")
+st.title("🔒 Adversarial Attack")
 
 st.markdown(
     """
