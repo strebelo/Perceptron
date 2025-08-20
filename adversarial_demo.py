@@ -1,5 +1,5 @@
 # adversarial_demo.py
-# Streamlit Adversarial Example Demo (FGSM on MobileNetV2)
+# Streamlit Adversarial Example Demo (Fast Gradient Sign Method (FGSM) on MobileNetV2)
 # Run: streamlit run adversarial_demo.py
 
 import io
