@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import streamlit as st
 
 st.set_page_config(page_title="Exploration vs. Exploitation: Deceptive Bandit", layout="wide")
-st.title("🎰 Deceptive Two-Armed Bandit (ε-greedy Q-learning)")
+st.title("🎰 The roles of the learning rate \alpha, and of exploration versus exploitation")
 
 st.markdown(
     """
