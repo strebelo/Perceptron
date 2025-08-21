@@ -1,6 +1,7 @@
-# bandit_demo.py
+# bandit_demo_min.py
 # Streamlit demo: epsilon-greedy + step-size (alpha) in a deceptive 2-armed bandit
-# Run: streamlit run bandit_demo.py
+# No Q0 slider, no cumulative reward plot.
+# Run: streamlit run bandit_demo_min.py
 
 import random
 import numpy as np
@@ -31,17 +32,19 @@ with st.sidebar:
     runs = st.slider("Independent runs (averaging)", min_value=1, max_value=50, value=10, step=1,
                      help="Average multiple runs to smooth randomness.")
     alpha = st.slider("Learning rate α", min_value=0.0, max_value=1.0, value=0.1, step=0.01)
-    epsilon = st.slider("ε-greedy (exploration prob)", min_value=0.0, max_value=1.0, value=0.1, step=0.01)
-    q0 = st.slider("Initial Q-value (optimism encourages exploration)", min_value=0.0, max_value=5.0, value=0.0, step=0.1)
+    epsilon = st.slider("ε-greedy (exploration prob.)", min_value=0.0, max_value=1.0, value=0.1, step=0.01)
     random_seed = st.number_input("Random seed (for reproducibility)", value=42, step=1)
-    use_stationary_alpha = st.checkbox("Use sample-average updates (α = 1/N_a) instead of fixed α", value=False,
-                                       help="When checked, step-size uses 1/(action count). Useful to compare to constant α.")
+    use_stationary_alpha = st.checkbox(
+        "Use sample-average updates (α = 1/N_a) instead of fixed α",
+        value=False,
+        help="When checked, step-size uses 1/(action count). Useful to compare to constant α."
+    )
 
     st.caption(
         "Tips:\n"
-        "- Set ε=0 and Q0=0 to show **suboptimal convergence** to Right.\n"
-        "- Try small ε (e.g., 0.05) and observe recovery toward Left.\n"
-        "- Try **optimistic** Q0 (e.g., 2.0) with ε=0 to show directed exploration by optimism."
+        "- Set ε=0 to show **suboptimal convergence** to Right after early bad luck on Left.\n"
+        "- Try small ε (0.05–0.1) to see recovery toward Left.\n"
+        "- Toggle sample-average updates to compare learning dynamics."
     )
 
 # ------------------------------
@@ -59,25 +62,26 @@ def env_reward(action: int, rng: random.Random) -> float:
 # ------------------------------
 # Simulation (epsilon-greedy bandit)
 # ------------------------------
-def run_bandit(episodes, alpha, epsilon, q0, use_stationary_alpha, seed):
+def run_bandit(episodes, alpha, epsilon, use_stationary_alpha, seed):
     rng = random.Random(seed)
-    np_rng = np.random.default_rng(seed)
 
-    Q = np.array([q0, q0], dtype=float)  # Q[0]=Left, Q[1]=Right
-    N = np.zeros(2, dtype=int)           # action counts
+    Q = np.array([0.0, 0.0], dtype=float)  # Q[0]=Left, Q[1]=Right; neutral initialization
+    N = np.zeros(2, dtype=int)             # action counts
 
     q_left_hist = np.zeros(episodes)
     q_right_hist = np.zeros(episodes)
     act_hist = np.zeros(episodes, dtype=int)
-    rew_hist = np.zeros(episodes)
-    optimal_action_hist = np.zeros(episodes, dtype=int)  # 1 if chose Left (truly optimal in EV), else 0
+    optimal_action_hist = np.zeros(episodes, dtype=int)  # 1 if chose Left (optimal in EV), else 0
 
     for t in range(episodes):
-        # ε-greedy action selection
+        # ε-greedy with random tie-breaking
         if rng.random() < epsilon:
             a = rng.choice([0, 1])
         else:
-            a = int(np.argmax(Q))  # break ties by lower index
+            if abs(Q[0] - Q[1]) < 1e-12:
+                a = rng.choice([0, 1])  # break ties randomly
+            else:
+                a = int(np.argmax(Q))
 
         r = env_reward(a, rng)
 
@@ -86,24 +90,18 @@ def run_bandit(episodes, alpha, epsilon, q0, use_stationary_alpha, seed):
 
         # Incremental update
         N[a] += 1
-        if use_stationary_alpha and N[a] > 0:
-            step = 1.0 / N[a]
-        else:
-            step = alpha
-
+        step = (1.0 / N[a]) if use_stationary_alpha and N[a] > 0 else alpha
         Q[a] += step * (r - Q[a])
 
         # Log histories
         q_left_hist[t] = Q[0]
         q_right_hist[t] = Q[1]
         act_hist[t] = a
-        rew_hist[t] = r
 
     return {
         "q_left": q_left_hist,
         "q_right": q_right_hist,
         "actions": act_hist,
-        "rewards": rew_hist,
         "optimal": optimal_action_hist
     }
 
@@ -111,30 +109,27 @@ def run_bandit(episodes, alpha, epsilon, q0, use_stationary_alpha, seed):
 # Run multiple seeds for averaging
 # ------------------------------
 random.seed(random_seed)
-all_qL, all_qR, all_opt, all_rew = [], [], [], []
+all_qL, all_qR, all_opt = [], [], []
 for i in range(runs):
     out = run_bandit(
         episodes=episodes,
         alpha=alpha,
         epsilon=epsilon,
-        q0=q0,
         use_stationary_alpha=use_stationary_alpha,
         seed=random_seed + i
     )
     all_qL.append(out["q_left"])
     all_qR.append(out["q_right"])
     all_opt.append(out["optimal"])
-    all_rew.append(out["rewards"])
 
 qL_mean = np.mean(np.stack(all_qL), axis=0)
 qR_mean = np.mean(np.stack(all_qR), axis=0)
 opt_rate = np.mean(np.stack(all_opt), axis=0)  # fraction choosing Left at each episode
-cum_rew = np.mean(np.cumsum(np.stack(all_rew), axis=1), axis=0)
 
 # ------------------------------
 # Plots (matplotlib; one figure per chart)
 # ------------------------------
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 
 with col1:
     fig1 = plt.figure()
@@ -155,30 +150,12 @@ with col2:
     plt.title("Exploration & Policy over Time")
     st.pyplot(fig2)
 
-with col3:
-    fig3 = plt.figure()
-    plt.plot(cum_rew)
-    plt.xlabel("Episode")
-    plt.ylabel("Average Cumulative Reward")
-    plt.title("Learning Performance")
-    st.pyplot(fig3)
-
-st.markdown("### What to Try")
+st.markdown("---")
+st.subheader("What to Observe")
 st.markdown(
     """
-- **Show suboptimal convergence**: set **ε = 0**, **Q0 = 0**, small **α** (e.g., 0.05).  
-  The agent often sticks to **Right** after early bad luck on **Left**.
-- **Recovery via exploration**: keep **ε small but > 0** (e.g., 0.05–0.1).  
-  Over time, the agent discovers Left’s higher EV and switches.
-- **Optimistic initialization**: set **Q0 > 0** (e.g., **2.0**) and **ε = 0**.  
-  Optimism alone can drive early exploration and avoid the trap.
-- **Stationary vs. non-stationary**: toggle **sample-average** updates to compare to fixed **α**.
+- **ε = 0** (pure greedy) with neutral initialization often locks onto **Right** after early bad luck on Left.  
+- **Small ε > 0** lets the agent occasionally try Left, discover its higher EV, and switch over time.  
+- **Sample-average vs constant α**: sample averages converge smoothly in stationary problems; constant α reacts faster if you later extend to non-stationary rewards.
 """
-)
-
-st.markdown("---")
-st.subheader("Why this works as a demo")
-st.write(
-    "Left is **rare high reward** (sparse signal). Without exploration, early unlucky samples make Left look bad, so the agent exploits Right’s small but consistent reward. "
-    "Students can see how **ε-greedy** and **α** change convergence, and how **optimistic initialization** can substitute for explicit ε."
 )
