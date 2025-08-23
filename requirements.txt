@@ -8,3 +8,6 @@ pandas_datareader
 tensorflow-cpu
 pillow
 numpy
+streamlit>=1.36
+numpy>=1.22
+matplotlib>=3.7
