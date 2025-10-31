@@ -168,13 +168,13 @@ x_vals = np.linspace(x_min, x_max, 200)
 
 # user-chosen line
 y_user = user_slope * x_vals + user_intercept
-ax.plot(x_vals, y_user, linestyle='--', label=f'Your line: y = {user_slope:.2f}x + {user_intercept:.2f}\n(acc={user_acc:.2%})')
+ax.plot(x_vals, y_user, linestyle='--', label=f'Your line: y = {user_slope:.2f}x + {user_intercept:.2f}\n(error={user_acc:.2%})')
 
 # perceptron line (if available)
 if perc_slope is not None:
     if perc_slope is not None and perc_intercept is not None:
         y_perc = perc_slope * x_vals + perc_intercept
-        ax.plot(x_vals, y_perc, linewidth=2, label=f'Perceptron: y = {perc_slope:.2f}x + {perc_intercept:.2f}\n(acc={perc_acc:.2%})')
+        ax.plot(x_vals, y_perc, linewidth=2, label=f'Perceptron: y = {perc_slope:.2f}x + {perc_intercept:.2f}\n(error={perc_acc:.2%})')
     else:
         st.info("Perceptron produced a vertical line (w2≈0). Not plotted.")
 
